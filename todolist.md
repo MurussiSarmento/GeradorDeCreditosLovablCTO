@@ -92,13 +92,13 @@ Pronto quando:
 - [x] Agrupar testes de Telegram (formatação, notificações, preview) em um único arquivo
 
 ## Fase 3: API Completa (Semana 3)
-- [ ] Implementar todos endpoints de `API_ENDPOINTS.md` (emails, messages, codes, webhooks, auth, health)
+- [x] Implementar todos endpoints de `API_ENDPOINTS.md` (emails, messages, codes, webhooks, auth, health)
   - [x] `GET /emails` listar com paginação, filtros, busca e ordenação
   - [x] `POST /emails/generate` com suporte `sync=true` e `webhook_url`
-  - [ ] Endpoints `codes` para extração de códigos/verificação
-  - [ ] Endpoints `webhooks` para notificações externas
+  - [x] Endpoints `codes` para extração de códigos/verificação
+  - [x] Endpoints `webhooks` para notificações externas
   - [ ] Persistir status de jobs em DB (`jobs` table) em vez de memória
-  - [ ] Suportar `sync=true` e `webhook_url` em `POST /emails/generate`
+  - [x] Suportar `sync=true` e `webhook_url` em `POST /emails/generate`
 - [x] Autenticação: API key + JWT (payload e permissões conforme `API_SPECIFICATIONS.md`)
   - [x] `POST /auth/token` (troca `API_KEY` por `access_token` JWT 24h)
   - [x] `GET /auth/validate` (valida token e retorna `expires_at`)
@@ -138,13 +138,86 @@ Pronto quando:
 
 ---
 
+## Sistema de Extração de Códigos - IMPLEMENTADO ✅
+
+- [x] **1.1 Criar estrutura do módulo** ✅
+  - [x] `core/extraction/__init__.py`
+  - [x] `core/extraction/code_extractor.py`
+  - [x] `core/extraction/patterns.py`
+  - [x] `core/extraction/validators.py`
+
+- [x] **1.2 Implementar patterns.py** ✅
+  - [x] Padrão OTP 4 dígitos
+  - [x] Padrão OTP 5 dígitos
+  - [x] Padrão OTP 6 dígitos
+  - [x] Padrão OTP 8 dígitos
+  - [x] Padrão URLs de verificação
+  - [x] Padrão tokens alfanuméricos
+  - [x] Padrão recovery codes
+  - [x] Padrão Google Authenticator
+  - [x] Padrão códigos com keywords (ex: "code:", "código:")
+  - [x] Documentar cada padrão
+
+- [x] **1.3 Implementar code_extractor.py** ✅
+  - [x] Classe `CodeExtractor`
+  - [x] Método `extract_codes(text, patterns=None)`
+  - [x] Método `extract_with_context(text, window=50)`
+  - [x] Método `extract_from_html(html_content)`
+  - [x] Cálculo de confidence score
+  - [x] Documentação e type hints
+
+- [x] **1.4 Criar modelo ExtractedCode** ✅
+  - [x] Adicionar tabela `extracted_codes` ao models.py
+  - [x] Campos: id, message_id, code, type, confidence, context, extracted_at
+  - [x] Relationship com Message
+  - [x] Migration script ou atualizar init_db.py
+
+- [x] **1.5 Implementar endpoints /codes** ✅
+  - [x] `GET /codes/{email}` - Listar códigos extraídos
+    - Query params: type, limit, recent
+  - [x] `POST /codes/{email}/check` - Verificar e extrair novos códigos
+    - Body: force_refresh, patterns
+  - [x] `GET /codes/{email}/types` - Listar tipos disponíveis com contagens
+  - [x] `DELETE /codes/{email}` - Deletar códigos (todos ou por tipo)
+  - [x] Schemas Pydantic para request/response
+  - [x] Integrar com auth_required
+
+- [x] **1.6 Integração automática** ✅
+  - [x] Extrair códigos ao persistir mensagem nova
+  - [x] Salvar em `extracted_codes` table
+  - [x] Webhook event opcional: "code.extracted"
+
+- [x] **1.7 Testes unitários** ✅
+  - [x] `test_code_extractor.py` - 15+ test cases
+  - [x] `test_api_codes.py` - Endpoints
+  - [x] Testar todos os patterns
+  - [x] Testar edge cases (sem código, múltiplos códigos)
+
+**Critérios de Aceitação:**
+- ✅ 8+ patterns implementados e testados
+- ✅ Endpoints /codes funcionando
+- ✅ Extração automática em mensagens novas
+- ✅ 15+ testes passando
+- ✅ Documentação no README atualizada
+
+**Arquivos Criados:**
+- ✅ `core/extraction/__init__.py`
+- ✅ `core/extraction/code_extractor.py`
+- ✅ `core/extraction/patterns.py`
+- ✅ `core/extraction/validators.py`
+- ✅ `api/routers/codes.py`
+- ✅ `tests/unit/test_code_extractor.py`
+- ✅ `tests/unit/test_api_codes.py`
+
+---
+
 Critérios Globais e Checks
-- [ ] Respeitar rate limit Mail.tm: 8 req/seg com backoff/retry
-- [ ] Criptografar senhas de email com Fernet (nunca logar segredos)
-- [ ] Validação de entrada 100% nas APIs (Pydantic)
-- [ ] CORS configurado corretamente e segurança JWT
-- [ ] Paginação em listas >100 itens
-- [ ] Cache de domínios com TTL 1h
+- [x] Respeitar rate limit Mail.tm: 8 req/seg com backoff/retry
+- [x] Criptografar senhas de email com Fernet (nunca logar segredos)
+- [x] Validação de entrada 100% nas APIs (Pydantic)
+- [x] CORS configurado corretamente e segurança JWT
+- [x] Paginação em listas >100 itens
+- [x] Cache de domínios com TTL 1h
 
 Referências Rápidas
 - `PROMPT_PRINCIPAL.md` – visão geral e metas

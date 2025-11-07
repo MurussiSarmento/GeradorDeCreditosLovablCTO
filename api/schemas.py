@@ -117,3 +117,34 @@ class WebhookResponse(BaseModel):
 class WebhooksListResponse(BaseModel):
     webhooks: List[WebhookResponse]
     total: int
+
+
+# Code extraction schemas
+class ExtractedCodeResponse(BaseModel):
+    id: str
+    code: str
+    type: str
+    confidence: float
+    context: Optional[str] = None
+    extracted_at: str
+    message_id: Optional[str] = None
+    message_subject: Optional[str] = None
+
+
+class CodesListResponse(BaseModel):
+    email: EmailStr
+    codes: List[ExtractedCodeResponse]
+    total: int
+
+
+class CheckCodesRequest(BaseModel):
+    force_refresh: bool = Field(default=False, description="Force re-extraction from all messages")
+    patterns: Optional[List[str]] = Field(default=None, description="Specific patterns to extract (default: all)")
+
+
+class CheckCodesResponse(BaseModel):
+    email: EmailStr
+    processed_messages: int
+    new_codes_extracted: int
+    total_codes: int
+    codes: List[ExtractedCodeResponse]

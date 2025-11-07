@@ -1,7 +1,8 @@
 from typing import Optional, List, Tuple
 import json
+import uuid
 from sqlalchemy.orm import Session
-from core.database.models import EmailAccount, Message, Webhook
+from core.database.models import EmailAccount, Message, Webhook, ExtractedCode
 
 
 def add_email_account(db: Session, account: EmailAccount) -> None:
@@ -79,3 +80,88 @@ def get_active_webhooks_for_event(db: Session, event_name: str) -> List[Webhook]
             # Ignorar webhooks com eventos inválidos
             continue
     return result
+
+
+# ExtractedCode operations
+def add_extracted_code(db: Session, code: ExtractedCode) -> None:
+    """Add a new extracted code to the database."""
+    if not code.id:
+        code.id = str(uuid.uuid4())
+    db.add(code)
+    db.commit()
+
+
+def get_extracted_codes_by_message(db: Session, message_id: str) -> List[ExtractedCode]:
+    """Get all extracted codes for a specific message."""
+    return db.query(ExtractedCode).filter(ExtractedCode.message_id == message_id).all()
+
+
+def get_extracted_codes_by_email(db: Session, email_id: str) -> List[ExtractedCode]:
+    """Get all extracted codes for all messages of an email."""
+    return (
+        db.query(ExtractedCode)
+        .join(Message, ExtractedCode.message_id == Message.id)
+        .filter(Message.email_id == email_id)
+        .order_by(ExtractedCode.extracted_at.desc())
+        .all()
+    )
+
+
+def get_extracted_codes_by_type(
+    db: Session, 
+    email_id: Optional[str] = None,
+    code_type: Optional[str] = None,
+    limit: Optional[int] = None
+) -> List[ExtractedCode]:
+    """Get extracted codes filtered by email and/or type."""
+    query = db.query(ExtractedCode)
+    
+    if email_id:
+        query = query.join(Message, ExtractedCode.message_id == Message.id).filter(Message.email_id == email_id)
+    
+    if code_type:
+        query = query.filter(ExtractedCode.code_type == code_type)
+    
+    query = query.order_by(ExtractedCode.extracted_at.desc())
+    
+    if limit:
+        query = query.limit(limit)
+    
+    return query.all()
+
+
+def get_recent_extracted_codes(
+    db: Session, 
+    email_id: Optional[str] = None,
+    hours: int = 24,
+    limit: int = 50
+) -> List[ExtractedCode]:
+    """Get recently extracted codes."""
+    from datetime import datetime, timezone, timedelta
+    
+    cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+    
+    query = db.query(ExtractedCode).filter(ExtractedCode.extracted_at >= cutoff_time)
+    
+    if email_id:
+        query = query.join(Message, ExtractedCode.message_id == Message.id).filter(Message.email_id == email_id)
+    
+    return query.order_by(ExtractedCode.extracted_at.desc()).limit(limit).all()
+
+
+def delete_extracted_codes_by_message(db: Session, message_id: str) -> int:
+    """Delete all extracted codes for a message. Returns count of deleted records."""
+    count = db.query(ExtractedCode).filter(ExtractedCode.message_id == message_id).count()
+    db.query(ExtractedCode).filter(ExtractedCode.message_id == message_id).delete()
+    db.commit()
+    return count
+
+
+def bulk_add_extracted_codes(db: Session, codes: List[ExtractedCode]) -> None:
+    """Add multiple extracted codes in bulk."""
+    for code in codes:
+        if not code.id:
+            code.id = str(uuid.uuid4())
+    
+    db.add_all(codes)
+    db.commit()

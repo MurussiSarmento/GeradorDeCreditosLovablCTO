@@ -1,5 +1,5 @@
 from sqlalchemy.orm import declarative_base
-from sqlalchemy import Column, String, DateTime, Integer, Boolean, Text
+from sqlalchemy import Column, String, DateTime, Integer, Boolean, Text, Float
 from datetime import datetime, timezone
 
 
@@ -48,3 +48,17 @@ class Webhook(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_triggered_at = Column(DateTime, nullable=True)
     failures = Column(Integer, default=0)
+
+
+class ExtractedCode(Base):
+    __tablename__ = "extracted_codes"
+
+    id = Column(String, primary_key=True)
+    message_id = Column(String, nullable=False)
+    code = Column(String, nullable=False)
+    code_type = Column(String, nullable=False)
+    confidence = Column(Float, nullable=False)
+    context = Column(Text, nullable=True)
+    start_pos = Column(Integer, default=0)
+    end_pos = Column(Integer, default=0)
+    extracted_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

@@ -6,12 +6,15 @@ from core.database.operations import (
     get_email_account_by_email,
     upsert_message,
     get_message_by_remote_id,
+    bulk_add_extracted_codes,
 )
+from core.database.models import ExtractedCode
 from api.auth import auth_required
 from api.schemas import MessagesResponse, MessageItem, MessageDetailResponse
 from utils.telegram import send_telegram_message, format_telegram_message
 from utils.webhooks import trigger_webhooks_for_event
 from core.mail_tm.client import MailTmClient
+from core.extraction import CodeExtractor
 
 router = APIRouter(prefix="/messages")
 
@@ -242,6 +245,70 @@ def get_message_detail(
                 }
                 trigger_webhooks_for_event(db, "message.received", payload_evt)
             except Exception:
+                pass
+            
+            # Extração automática de códigos da nova mensagem
+            try:
+                extractor = CodeExtractor(min_confidence=0.3)
+                
+                # Extrair do texto e HTML
+                text_content = text or ""
+                html_content = html or ""
+                
+                extracted_codes = []
+                
+                # Extrair do texto
+                if text_content:
+                    text_codes = extractor.extract_codes(text_content)
+                    extracted_codes.extend(text_codes)
+                
+                # Extrair do HTML
+                if html_content:
+                    html_codes = extractor.extract_from_html(html_content)
+                    extracted_codes.extend(html_codes)
+                
+                # Salvar códigos extraídos no banco
+                if extracted_codes:
+                    code_models = []
+                    for code in extracted_codes:
+                        code_model = ExtractedCode(
+                            message_id=msg.id,
+                            code=code.code,
+                            code_type=code.code_type,
+                            confidence=code.confidence,
+                            context=code.context,
+                            start_pos=code.start_pos,
+                            end_pos=code.end_pos
+                        )
+                        code_models.append(code_model)
+                    
+                    bulk_add_extracted_codes(db, code_models)
+                    
+                    # Disparar webhook para code.extracted se houver códigos
+                    try:
+                        codes_payload = [
+                            {
+                                "code": code.code,
+                                "type": code.code_type,
+                                "confidence": code.confidence
+                            }
+                            for code in extracted_codes
+                        ]
+                        
+                        code_event_payload = {
+                            "event": "code.extracted",
+                            "email": acc.email,
+                            "message_id": message_id,
+                            "subject": subject,
+                            "sender": sender,
+                            "codes": codes_payload
+                        }
+                        trigger_webhooks_for_event(db, "code.extracted", code_event_payload)
+                    except Exception:
+                        pass
+                        
+            except Exception:
+                # Silently fail code extraction to not break message processing
                 pass
 
         return {
