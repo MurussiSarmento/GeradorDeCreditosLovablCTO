@@ -7,6 +7,7 @@ from api.routers.messages import router as messages_router
 from api.routers.auth import router as auth_router
 from api.routers.jobs import router as jobs_router
 from api.routers.webhooks import router as webhooks_router
+from api.routers.codes import router as codes_router
 from api.rate_limit import RateLimiterMiddleware
 from core.mail_tm.client import MailTmClient
 
@@ -39,6 +40,7 @@ def create_app() -> FastAPI:
     app.include_router(messages_router)
     app.include_router(jobs_router)
     app.include_router(webhooks_router)
+    app.include_router(codes_router)
     app.add_middleware(RateLimiterMiddleware)
     return app
 
